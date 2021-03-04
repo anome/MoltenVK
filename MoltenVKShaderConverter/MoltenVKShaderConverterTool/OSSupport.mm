@@ -71,15 +71,17 @@ bool mvk::compile(const string& mslSourceCode,
 #define mslVer(MJ, MN, PT)	mslVersionMajor == MJ && mslVersionMinor == MN && mslVersionPoint == PT
 
 	MTLLanguageVersion mslVerEnum = (MTLLanguageVersion)0;
+    // For ISF, keep maximum compatibility
+    /*
 	if (mslVer(2, 1, 0)) {
 		mslVerEnum = MTLLanguageVersion2_1;
 	} else if (mslVer(2, 0, 0)) {
 		mslVerEnum = MTLLanguageVersion2_0;
 	} else if (mslVer(1, 2, 0)) {
 		mslVerEnum = MTLLanguageVersion1_2;
-	} else if (mslVer(1, 1, 0)) {
+	} else if (mslVer(1, 1, 0)) {*/
 		mslVerEnum = MTLLanguageVersion1_1;
-	}
+	//}
 
 	if ( !mslVerEnum ) {
 		errMsg = [NSString stringWithFormat: @"%d.%d.%d is not a valid MSL version number on this device",
