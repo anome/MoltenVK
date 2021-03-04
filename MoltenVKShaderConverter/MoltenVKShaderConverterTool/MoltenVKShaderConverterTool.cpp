@@ -56,37 +56,48 @@ void MVKPerformanceTracker::accumulate(uint64_t startTime, uint64_t endTime) {
 #pragma mark MoltenVKShaderConverterTool
 
 
-int MoltenVKShaderConverterTool::run() {
-	if ( !_isActive ) { return EXIT_FAILURE; }
+MVKForISFConversionErrorCode MoltenVKShaderConverterTool::run(std::string& errMsg) {
+	if ( !_isActive ) { return MVKForISFConversionErrorCode::INACTIVE_ERROR; }
 
-	bool success = false;
+//	bool success = false;
 	if ( !_directoryPath.empty() ) {
-		string errMsg;
-		success = iterateDirectory(_directoryPath, *this, _shouldUseDirectoryRecursion, errMsg);
-		if ( !success ) { log(errMsg.data()); }
+		bool success = iterateDirectory(_directoryPath, *this, _shouldUseDirectoryRecursion, errMsg);
+		if ( !success ) {
+            log(errMsg.data());
+            return MVKForISFConversionErrorCode::FILE_ERROR;
+        }
 	} else {
 		if (_shouldReadGLSL) {
-			success = convertGLSL(_glslInFilePath, _spvOutFilePath, _mslOutFilePath, _shaderStage);
+			bool success = convertGLSL(_glslInFilePath, _spvOutFilePath, _mslOutFilePath, _shaderStage, errMsg);
+            if(!success) {
+                return MVKForISFConversionErrorCode::GLSL_TO_SPIRV_ERROR;
+            }
 		} else if (_shouldReadSPIRV) {
-			success = convertSPIRV(_spvInFilePath, _mslOutFilePath);
+			bool success = convertSPIRV(_spvInFilePath, _mslOutFilePath, errMsg);
+            if(!success) {
+               return MVKForISFConversionErrorCode::SPIRV_TO_MSL_ERROR;
+           }
+            
 		} else {
 			showUsage();
 		}
 	}
 	reportPerformance();
 
-	return success ? EXIT_SUCCESS : EXIT_FAILURE;
+    return MVKForISFConversionErrorCode::SUCCESS;
 }
 
 bool MoltenVKShaderConverterTool::processFile(string filePath) {
 	string absPath = absolutePath(filePath);
 	string emptyPath;
-
+    // Silent error
+    string errMsg;
+    
 	string pathExtn = pathExtension(absPath);
 	if (_shouldReadGLSL && isGLSLFileExtension(pathExtn)) {
-		return convertGLSL(absPath, emptyPath, emptyPath, kMVKGLSLConversionShaderStageAuto);
+		return convertGLSL(absPath, emptyPath, emptyPath, kMVKGLSLConversionShaderStageAuto, errMsg);
 	} else if (_shouldReadSPIRV && isSPIRVFileExtension(pathExtn)) {
-		return convertSPIRV(absPath, emptyPath);
+		return convertSPIRV(absPath, emptyPath, errMsg);
 	}
 
 	return true;
@@ -97,15 +108,16 @@ bool MoltenVKShaderConverterTool::processFile(string filePath) {
 bool MoltenVKShaderConverterTool::convertGLSL(string& glslInFile,
 											string& spvOutFile,
 											string& mslOutFile,
-											MVKGLSLConversionShaderStage shaderStage) {
+											MVKGLSLConversionShaderStage shaderStage,
+                                            std::string& errMsg) {
 	string path;
 	vector<char> fileContents;
 	string glslCode;
-	string errMsg;
 
 	// Read the GLSL
 	if (glslInFile.empty()) {
-		log("The GLSL file to read from was not specified");
+        errMsg = "The GLSL file to read from was not specified";
+        log(errMsg.data());
 		return false;
 	}
 
@@ -141,9 +153,8 @@ bool MoltenVKShaderConverterTool::convertGLSL(string& glslInFile,
 	if (wasConverted) {
 		if (_shouldLogConversions) { log(glslConverter.getResultLog().data()); }
 	} else {
-		string logMsg = "Could not convert GLSL in file: " + absolutePath(path);
-		log(logMsg.data());
-		log(glslConverter.getResultLog().data());
+        errMsg = "Could not convert GLSL in file: " + absolutePath(path) + glslConverter.getResultLog().data();
+		log(errMsg.data());
 		return false;
 	}
 
@@ -171,15 +182,14 @@ bool MoltenVKShaderConverterTool::convertGLSL(string& glslInFile,
 		}
 	}
 
-	return convertSPIRV(spv, glslInFile, mslOutFile, false);
+	return convertSPIRV(spv, glslInFile, mslOutFile, false, errMsg);
 }
 
 // Read SPIR-V code from a SPIR-V file, convert to MSL, and write the MSL code to files.
-bool MoltenVKShaderConverterTool::convertSPIRV(string& spvInFile, string& mslOutFile) {
+bool MoltenVKShaderConverterTool::convertSPIRV(string& spvInFile, string& mslOutFile, string& errMsg) {
 	string path;
 	vector<char> fileContents;
 	vector<uint32_t> spv;
-	string errMsg;
 
 	// Read the SPIRV
 	if (spvInFile.empty()) {
@@ -198,14 +208,15 @@ bool MoltenVKShaderConverterTool::convertSPIRV(string& spvInFile, string& mslOut
 	}
 	bytesToSPIRV(fileContents, spv);
 
-	return convertSPIRV(spv, spvInFile, mslOutFile, _shouldLogConversions);
+	return convertSPIRV(spv, spvInFile, mslOutFile, _shouldLogConversions, errMsg);
 }
 
 // Read SPIR-V code from an array, convert to MSL, and write the MSL code to files.
 bool MoltenVKShaderConverterTool::convertSPIRV(const vector<uint32_t>& spv,
 											   string& inFile,
 											   string& mslOutFile,
-											   bool shouldLogSPV) {
+											   bool shouldLogSPV,
+                                               string& errMsg) {
 	if ( !_shouldWriteMSL ) { return true; }
 
 	// Derive the context under which conversion will occur
@@ -224,7 +235,7 @@ bool MoltenVKShaderConverterTool::convertSPIRV(const vector<uint32_t>& spv,
 	if (wasConverted) {
 		if (_shouldLogConversions) { log(spvConverter.getResultLog().data()); }
 	} else {
-		string errMsg = "Could not convert SPIR-V in file: " + absolutePath(inFile);
+        errMsg = "Could not convert SPIR-V in file: " + absolutePath(inFile);
 		log(errMsg.data());
 		log(spvConverter.getResultLog().data());
 		return false;
