@@ -103,6 +103,9 @@ bool mvk::compile(const string& mslSourceCode,
 		mslVerEnum = MTLLanguageVersion1_1;
 	}
 
+	// ISF: force MTL Language
+	mslVerEnum = MTLLanguageVersion1_1;
+
 	if ( !mslVerEnum ) {
 		errMsg = [NSString stringWithFormat: @"%d.%d.%d is not a valid MSL version number on this device",
 				  mslVersionMajor, mslVersionMinor, mslVersionPoint].UTF8String;
