@@ -37,6 +37,15 @@ namespace mvk {
 		void accumulate(uint64_t startTime, uint64_t endTime = 0);
 	} MVKPerformanceTracker;
 
+typedef enum {
+    SUCCESS = 1,
+    FILE_ERROR = -1,
+    GLSL_TO_SPIRV_ERROR = -2,
+    SPIRV_TO_MSL_ERROR = -3,
+    INACTIVE_ERROR = -4,
+    
+} MVKForISFConversionErrorCode;
+
 #pragma mark -
 #pragma mark MoltenVKShaderConverterTool
 
@@ -58,7 +67,7 @@ namespace mvk {
 		 * Run the converter based on command line arguments.
 		 * Returns zero if all went well, or an error code if not.
 		 */
-		int run();
+		MVKForISFConversionErrorCode run(std::string& errorMsg);
 
 		/** Constructor with specified command line arguments. */
 		MoltenVKShaderConverterTool(int argc, const char* argv[]);
@@ -70,13 +79,16 @@ namespace mvk {
 		bool convertGLSL(std::string& glslInFile,
 						 std::string& spvOutFile,
 						 std::string& mslOutFile,
-						 MVKGLSLConversionShaderStage shaderStage);
+						 MVKGLSLConversionShaderStage shaderStage,
+                         std::string& errMsg);
 		bool convertSPIRV(std::string& spvInFile,
-						  std::string& mslOutFile);
+						  std::string& mslOutFile,
+                          std::string& errMsg);
 		bool convertSPIRV(const std::vector<uint32_t>& spv,
 						  std::string& inFile,
 						  std::string& mslOutFile,
-						  bool shouldLogSPV);
+						  bool shouldLogSPV,
+                          std::string& errMsg);
 		bool parseArgs(int argc, const char* argv[]);
 		void log(const char* logMsg);
 		void showUsage();
