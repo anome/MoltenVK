@@ -23,5 +23,6 @@ using namespace mvk;
 
 int main(int argc, const char * argv[]) {
 	MoltenVKShaderConverterTool converter(argc, argv);
-	return converter.run();
+    std::string errorMsg;
+	return converter.run(errorMsg);
 }
