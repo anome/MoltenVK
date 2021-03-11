@@ -389,7 +389,10 @@ void MoltenVKShaderConverterTool::reportPerformance(MVKPerformanceTracker& shade
 	logMsg += " ms, avg: ";
 	logMsg += to_string(shaderCompilationEvent.averageDuration);
 	logMsg += " ms.\n";
+    bool qm = _quietMode;
+    _quietMode = false;
 	log(logMsg.c_str());
+    _quietMode = qm;
 }
 
 
