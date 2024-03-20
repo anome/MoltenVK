@@ -61,7 +61,7 @@ MVK_PUBLIC_SYMBOL bool GLSLToSPIRVConverter::convert(MVKGLSLConversionShaderStag
 
 	if (shouldLogGLSL) { logGLSL(conversionResult.resultLog, "Converting"); }
 
-	EShMessages messages = (EShMessages)(EShMsgDefault | EShMsgSpvRules | EShMsgVulkanRules);
+	EShMessages messages = (EShMessages)(EShMsgDefault /*| EShMsgSpvRules | EShMsgVulkanRules*/);
 
 	EShLanguage stage = eshLanguageFromMVKGLSLConversionShaderStage(shaderStage);
 	TBuiltInResource glslCompilerResources;
@@ -74,7 +74,18 @@ MVK_PUBLIC_SYMBOL bool GLSLToSPIRVConverter::convert(MVKGLSLConversionShaderStag
 		glslStrings[0] = glsl.data();
 
 		// Create and compile a shader from the source code
-		glslShaders.emplace_back(new glslang::TShader(stage));
+//		glslShaders.emplace_back(new glslang::TShader(stage));
+        
+        // Custom settings for ISF compilation (old GL, old SPirV!)
+        glslang::TShader *myShader = new glslang::TShader(stage);
+        myShader->setEnvClient(glslang::EShClientOpenGL, glslang::EShTargetOpenGL_450);
+        myShader->setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_0);
+        myShader->setAutoMapBindings(true);
+        myShader->setAutoMapLocations(true);
+
+        glslShaders.emplace_back(myShader);
+        
+        
 		glslShaders.back()->setStrings(glslStrings, 1);
 		glslShaders.back()->setAutoMapBindings(true);
 		if (glslShaders.back()->parse(&glslCompilerResources, 100, false, messages)) {
